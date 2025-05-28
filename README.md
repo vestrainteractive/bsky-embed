@@ -8,6 +8,10 @@ To use:
 3. fill out the widget form and press save.
 4. enjoy
 
+New in version 1.1:  Shortcode and dark mode support!
+[bsky_embed username="vestrainteractive.com" limit="4" height="150" mode="dark"]
+
+
 You will likely need to style the output using CSS.
 
 
