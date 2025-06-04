@@ -13,11 +13,6 @@ To use:
 New in version 1.1:  Shortcode and dark mode support!
 [bsky_embed username="vestrainteractive.com" limit="4" height="150" mode="dark"]
 
-Version 1.1 and later does not need the truncate.js file.  We have left it here for legacy reasons.  In the final release zip, it will not be included.
-You will likely need to style the output using CSS.
-
-
-
 Inspired by DavidC @twowheelsin.com
 
 GDPR INFO:
