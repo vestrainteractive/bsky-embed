@@ -1,69 +1,58 @@
-document.addEventListener("DOMContentLoaded", function () {
-    try {
-        // Skip in iframes or admin
-        if (window.location !== window.parent.location || document.body.classList.contains('wp-admin')) {
-            return;
+<?php
+/*
+Plugin Name: Bluesky Embed Widget
+Description: A widget and shortcode to embed Bluesky posts with customization (height, mode, limit).
+Version: 1.5
+Author: Vestra Interactive
+*/
+
+if (!defined('ABSPATH')) exit;
+
+// Shortcode
+function bluesky_embed_shortcode($atts) {
+    $atts = shortcode_atts([
+        'username' => 'twowheelsin.com',
+        'limit'    => 3,
+        'mode'     => 'light',
+    ], $atts);
+
+    $username = esc_attr($atts['username']);
+    $limit    = intval($atts['limit']);
+    $mode     = esc_attr($atts['mode']);
+
+    return "<bsky-embed username='$username' limit='$limit' mode='$mode'></bsky-embed>";
+}
+add_shortcode('bsky_embed', 'bluesky_embed_shortcode');
+
+// Check if shortcode exists in post and enqueue on frontend only
+add_filter('the_posts', function ($posts) {
+    if (is_admin() || empty($posts)) return $posts;
+
+    foreach ($posts as $post) {
+        if (has_shortcode($post->post_content, 'bsky_embed')) {
+            add_action('wp_enqueue_scripts', 'enqueue_bsky_embed_scripts');
+            break;
         }
-
-        console.log("✅ Bluesky Truncate Script Loaded");
-
-        customElements.whenDefined("bsky-embed").then(() => {
-            console.log("✅ bsky-embed component is ready!");
-
-            const embeds = document.querySelectorAll("bsky-embed");
-            if (!embeds.length) {
-                console.warn("❌ No Bluesky embeds found.");
-                return;
-            }
-
-            function truncatePosts(embed) {
-                if (!embed.shadowRoot) return false;
-
-                const posts = embed.shadowRoot.querySelectorAll('[id^="post-"]');
-                if (!posts.length) return false;
-
-                posts.forEach(post => {
-                    if (!post || post.querySelector(".truncated-content")) return;
-
-                    const wrapper = document.createElement("div");
-                    wrapper.className = "truncated-content";
-                    wrapper.style.overflow = "hidden";
-                    wrapper.style.maxHeight = "120px";
-                    wrapper.style.transition = "max-height 0.3s ease-in-out";
-
-                    while (post.firstChild) {
-                        wrapper.appendChild(post.firstChild);
-                    }
-                    post.appendChild(wrapper);
-
-                    const toggle = document.createElement("span");
-                    toggle.className = "read-more";
-                    toggle.textContent = "Read More";
-                    toggle.style.cursor = "pointer";
-                    toggle.style.color = "#ff4500";
-                    toggle.style.display = "block";
-                    toggle.style.marginTop = "5px";
-
-                    toggle.addEventListener("click", () => {
-                        const expanded = wrapper.style.maxHeight !== "120px";
-                        wrapper.style.maxHeight = expanded ? "120px" : "none";
-                        toggle.textContent = expanded ? "Read More" : "Show Less";
-                    });
-
-                    post.appendChild(toggle);
-                });
-
-                return true;
-            }
-
-            embeds.forEach(embed => {
-                let tries = 0;
-                const interval = setInterval(() => {
-                    if (truncatePosts(embed) || ++tries >= 20) clearInterval(interval);
-                }, 500);
-            });
-        });
-    } catch (e) {
-        console.error("Bluesky Truncate Error:", e);
     }
+
+    return $posts;
 });
+
+// Enqueue scripts only if shortcode used
+function enqueue_bsky_embed_scripts() {
+    wp_enqueue_script(
+        'bsky-embed-lib',
+        'https://cdn.jsdelivr.net/npm/bsky-embed/dist/bsky-embed.es.js',
+        [],
+        null,
+        true
+    );
+
+    wp_enqueue_script(
+        'bsky-truncate',
+        plugin_dir_url(__FILE__) . 'truncate.js',
+        [],
+        null,
+        true
+    );
+}
