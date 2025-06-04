@@ -1,3 +1,5 @@
+![Bluesky Embed Widget](social-preview.png)
+
 # bsky-embed
 embed your bluesky posts in a wp widget
 
