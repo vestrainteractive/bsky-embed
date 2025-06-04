@@ -2,7 +2,7 @@
 /*
 Plugin Name: Bluesky Embed Widget
 Description: A widget and shortcode to embed Bluesky posts with customization (height, mode, limit).
-Version: 1.1
+Version: 1.4
 Author: Vestra Interactive
 */
 
@@ -11,7 +11,11 @@ if (!defined('ABSPATH')) exit;
 // Register the widget
 class Bluesky_Embed_Widget extends WP_Widget {
     public function __construct() {
-        parent::__construct('bluesky_embed_widget', __('Bluesky Embed Widget', 'twowheelsin'), array('description' => __('Embed Bluesky posts with customization.', 'twowheelsin')));
+        parent::__construct(
+            'bluesky_embed_widget',
+            __('Bluesky Embed Widget', 'twowheelsin'),
+            array('description' => __('Embed Bluesky posts with customization.', 'twowheelsin'))
+        );
     }
 
     public function widget($args, $instance) {
@@ -62,9 +66,7 @@ class Bluesky_Embed_Widget extends WP_Widget {
         ];
     }
 }
-
-// Register the widget
-add_action('widgets_init', function() {
+add_action('widgets_init', function () {
     register_widget('Bluesky_Embed_Widget');
 });
 
@@ -77,25 +79,41 @@ function bluesky_embed_shortcode($atts) {
         'mode' => 'light'
     ], $atts);
 
-    ob_start(); ?>
-    <bsky-embed username="<?php echo esc_attr($atts['username']); ?>" mode="<?php echo esc_attr($atts['mode']); ?>" limit="<?php echo esc_attr($atts['limit']); ?>"></bsky-embed>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            fetch('<?php echo plugin_dir_url(__FILE__); ?>truncate.js')
-                .then(r => r.text())
-                .then(script => {
-                    const height = <?php echo intval($atts['height']); ?>;
-                    eval(script.replace(/120px/g, height + 'px'));
-                });
-        });
-    </script>
-    <?php
-    return ob_get_clean();
+    $unique_id = 'bsky-' . uniqid();
+
+    return "
+    <div id='{$unique_id}' class='bsky-container' data-height='" . intval($atts['height']) . "'>
+        <bsky-embed 
+            username='" . esc_attr($atts['username']) . "' 
+            mode='" . esc_attr($atts['mode']) . "' 
+            limit='" . esc_attr($atts['limit']) . "'>
+        </bsky-embed>
+    </div>";
 }
 add_shortcode('bsky_embed', 'bluesky_embed_shortcode');
 
-// Enqueue core Bluesky script
-add_action('wp_enqueue_scripts', function () {
+// Check for shortcode in posts and enqueue scripts only on frontend when needed
+function bluesky_check_shortcode_usage($posts) {
+    if (empty($posts) || is_admin()) return $posts;
+
+    $found = false;
+    foreach ($posts as $post) {
+        if (has_shortcode($post->post_content, 'bsky_embed')) {
+            $found = true;
+            break;
+        }
+    }
+
+    if ($found) {
+        add_action('wp_enqueue_scripts', 'bluesky_enqueue_scripts', 20);
+    }
+
+    return $posts;
+}
+add_filter('the_posts', 'bluesky_check_shortcode_usage');
+
+// Enqueue JS only if shortcode is detected
+function bluesky_enqueue_scripts() {
     wp_enqueue_script(
         'bsky-embed',
         'https://cdn.jsdelivr.net/npm/bsky-embed/dist/bsky-embed.es.js',
@@ -103,4 +121,12 @@ add_action('wp_enqueue_scripts', function () {
         null,
         true
     );
-});
+
+    wp_enqueue_script(
+        'bsky-truncate',
+        plugin_dir_url(__FILE__) . 'truncate.js',
+        [],
+        null,
+        true
+    );
+}
